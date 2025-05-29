@@ -1,0 +1,9 @@
+type: S3
+config:
+  bucket: "banc-thanos-metrics-store"
+  endpoint: "s3.amazonaws.com"
+  region: "us-west-2"
+  access_key: "" # OPCIONAL si usas IAM roles
+  secret_key: "" # OPCIONAL si usas IAM roles
+  insecure: false
+  signature_version2: false

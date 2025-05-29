@@ -1,0 +1,235 @@
+services:
+  # Catvisor
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    container_name: cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+    networks:
+      - homelab
+
+  # Loki service
+  loki:
+    container_name: loki
+    build:
+      context: services/loki
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    env_file:
+      - .env
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
+
+  # Fluent Bit service
+  fluent-bit:
+    container_name: fluent-bit
+    image: grafana/fluent-bit-plugin-loki:latest
+    platform: linux/amd64
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes:
+      - ./services/fluent-bit/config.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      - LOKI_URL=http://loki:3100/loki/api/v1/push
+    restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    depends_on:
+      - loki
+    networks:
+      - homelab
+
+    # Log generating application
+  log-generator:
+    container_name: log-generator
+    image: busybox
+    command: >
+      sh -c 'while true; do
+        level=$$([ $$((RANDOM % 10)) -lt 7 ] && echo "INFO" || echo "ERROR");
+        message=$$([ "$$level" = "INFO" ] && echo "User login successful" || echo "Failed to connect to database");
+        echo "{\"level\":\"$$level\",\"message\":\"$$message\"}";
+        sleep $$(( RANDOM % 5 + 1 ));
+      done'
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    restart: unless-stopped
+    depends_on:
+      - fluent-bit
+    networks:
+      - homelab
+
+  # Thanos receiver service
+  thanos-receive:
+    container_name: thanos-receive
+    build:
+      context: services/thanos
+      dockerfile: Dockerfile
+    ports:
+      - "20291:19291"
+      - "20901:10901"
+      - "20902:10902"
+    restart: unless-stopped
+    command:
+      [
+        "receive",
+        '--label=replica="receive-0"',
+        "--receive.local-endpoint=localhost:10901",
+        "--receive.hashrings-file=/etc/thanos/hashring.json",
+        "--objstore.config-file=/etc/thanos/s3.yaml",
+        "--tsdb.path=/tmp/data",
+      ]
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    env_file:
+      - .env
+    networks:
+      - homelab
+
+  # Thanos store service
+  thanos-store:
+    container_name: thanos-store
+    build:
+      context: services/thanos
+      dockerfile: Dockerfile
+    command:
+      [
+        "store",
+        "--data-dir=/tmp/store",
+        "--objstore.config-file=/etc/thanos/s3.yaml",
+      ]
+    ports:
+      - "30901:10901"
+      - "30902:10902"
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - thanos-receive
+    networks:
+      - homelab
+
+  thanos-query:
+    container_name: thanos-query
+    build:
+      context: services/thanos/
+      dockerfile: Dockerfile
+    ports:
+      - "40901:10901"
+      - "40902:10902"
+    restart: unless-stopped
+    command:
+      [
+        "query",
+        "--endpoint=thanos-store:10901",
+        "--endpoint=thanos-receive:10901",
+        "--query.replica-label=replica",
+      ]
+    depends_on:
+      - thanos-receive
+      - thanos-store
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
+
+  #Prometheus service
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.48.1
+    volumes:
+      - ./services/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - thanos-receive
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
+
+  # Tempo service
+  # tempo:
+  #   container_name: tempo
+  #   restart: unless-stopped
+  #   build:
+  #     context: ./tempo
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3200:3200"
+  #   expose:
+  #     - "4318"
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: localhost:24224
+  #       tag: docker.{{.Name}}
+  #       fluentd-async: "true"
+
+  # Grafana service
+  grafana:
+    container_name: grafana
+    build:
+      context: services/grafana
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    depends_on:
+      - loki
+    restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    env_file:
+      - .env
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    external: true
+
+volumes:
+  grafana-data:

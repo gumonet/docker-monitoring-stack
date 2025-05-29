@@ -1,0 +1,23 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+
+exporters:
+  otlphttp:
+    endpoint: http://tempo:4318
+    headers:
+      "X-Scope-OrgID": "single-tenant"
+    tls:
+      insecure: true
+  # logging:
+  #   loglevel: debug
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlphttp]
+  # telemetry:
+  #   logs:
+  #     level: debug

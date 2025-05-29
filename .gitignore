@@ -1,0 +1,2 @@
+.env
+services/thanos/s3-config.yaml

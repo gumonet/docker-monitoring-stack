@@ -1,0 +1,23 @@
+{
+  "streams": [
+    {
+      "stream": {
+        "job": "fluent-bit",
+        "cluster": "olympus",
+        "namespace": "default",
+        "pod": "test-pod",
+        "container": "test-container"
+      },
+      "values": [
+        [
+          "1745948527000000000",
+          "{\"log\":\"this is a test log with structured metadata\"}"
+        ]
+      ],
+      "structuredMetadata": {
+        "custom_key": "custom_value",
+        "environment": "production"
+      }
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+services:
+  # Log generating application
+  log-generator:
+    container_name: log-generator
+    image: busybox
+    command: >
+      sh -c 'while true; do
+        level=$$([ $$((RANDOM % 10)) -lt 7 ] && echo "INFO" || echo "ERROR");
+        message=$$([ "$$level" = "INFO" ] && echo "User login successful" || echo "Failed to connect to database");
+        echo "{\"level\":\"$$level\",\"message\":\"$$message\"}";
+        sleep $$(( RANDOM % 5 + 1 ));
+      done'
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    restart: unless-stopped
+
+  # Fluent Bit configuration
+  fluent-bit:
+    container_name: fluent-bit
+    image: grafana/fluent-bit-plugin-loki:latest
+    platform: linux/amd64
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      - LOKI_URL=http://loki:3100/loki/api/v1/push
+    restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  # Loki service
+  loki:
+    container_name: loki
+    build:
+      context: loki
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+    env_file:
+      - .env
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  grafana:
+    container_name: grafana
+    build:
+      context: grafana
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - loki
+    restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    env_file:
+      - .env
+
+  thanos-receive:
+    container_name: thanos-receive
+    build:
+      context: thanos/
+      dockerfile: ReceiveDockerfile
+    ports:
+      - "19291:19291"
+      - "10901:10901"
+      - "10902:10902"
+    restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    env_file:
+      - .env
+  thanos-store:
+    container_name: thanos-store
+    build:
+      context: thanos/
+      dockerfile: StoreDockerfile
+    ports:
+      - "20901:10901"
+      - "20902:10902"
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - thanos-receive
+  thanos-query:
+    container_name: thanos-query
+    build:
+      context: thanos/
+      dockerfile: QueryDockerfile
+    ports:
+      - "30901:10901"
+      - "30902:10902"
+    restart: unless-stopped
+    command:
+      [
+        "query",
+        "--endpoint=thanos-store:10901",
+        "--endpoint=thanos-receive:10901",
+        "--query.replica-label=replica",
+      ]
+    depends_on:
+      - thanos-receive
+      - thanos-store
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.48.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - thanos-receive
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  postgres:
+    container_name: postgres
+    image: postgres:14
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: demo
+    ports:
+      - "5432:5432"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    # volumes:
+    #   - ./pgdata:/var/lib/postgresql/data
+
+  tempo:
+    container_name: tempo
+    image: grafana/tempo:2.4.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./tempo_config.yaml:/etc/tempo.yaml
+    ports:
+      - "3200:3200"
+    expose:
+      - "4318"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml
+    ports:
+      - "4318:4318"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  service-a:
+    container_name: service-a
+    build:
+      context: ./apps/service-a
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    # volumes:
+    #   - ./logs:/app/logs
+    ports:
+      - "8080:8080"
+    depends_on:
+      - service-b
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+  service-b:
+    container_name: service-b
+    build:
+      context: ./apps/service-b
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - DB_HOST=postgres
+      - DB_USER=user
+      - DB_PASS=pass
+      - DB_NAME=demo
+    # volumes:
+    #   - ./logs:/app/logs
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+
+networks:
+  loki-grafana:
+    driver: bridge
+
+  netalertx:
+    container_name: netalertx
+    # use the below line if you want to test the latest dev image
+    # image: "jokobsk/netalertx-dev:latest"
+    image: "jokobsk/netalertx:latest"
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - $PWD/netalertx/config:/app/config
+      - $PWD/netalertx/db:/app/db
+      # (optional) useful for debugging if you have issues setting up the container
+      #- local/path/logs:/app/front/log
+    environment:
+      - TZ=America/Mexico_City
+      - PORT=20210
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor
+    container_name: cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+
+
+networks:
+  home-lab:
+    driver: bridge
+volumes:
+  portainer_data:
+  proxy-manager-data:
+  proxy-manager-letsencrypt:
+  adguard-home:
+  registry:
+  minio-data:

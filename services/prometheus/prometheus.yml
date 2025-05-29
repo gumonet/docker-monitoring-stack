@@ -1,0 +1,27 @@
+# prometheus.yml
+global:
+  scrape_interval: 15s
+
+# scrape_configs:
+#   - job_name: "prometheus"
+#     static_configs:
+#       - targets: ["localhost:9090"]
+
+scrape_configs:
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+  - job_name: "host_machine"
+    scrape_interval: 5s
+    scheme: http
+    static_configs:
+      - targets: ["192.16.0.20:9100"]
+
+remote_write:
+  - url: http://thanos-receive:19291/api/v1/receive
+    headers:
+      THANOS-TENANT: default-tenant
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 1
+      capacity: 2500
