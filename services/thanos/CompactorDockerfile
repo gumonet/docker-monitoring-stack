@@ -1,8 +1,0 @@
-FROM quay.io/thanos/thanos:v0.34.1
-
-COPY ../s3.yaml /etc/thanos/s3.yaml
-
-CMD [ "compact",
-      "--data-dir=/data",
-      "--objstore.config-file=/etc/thanos/s3.yaml",
-      "--wait" ]

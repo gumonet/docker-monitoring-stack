@@ -1,5 +1,0 @@
-FROM thanosio/thanos:v0.38.0
-CMD [ "query", \
-      "--endpoint=thanos-receive:10901", \
-      "--endpoint=thanos-store:10901", \
-      "--query.replica-label=replica" ]
