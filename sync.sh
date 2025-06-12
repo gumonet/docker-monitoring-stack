@@ -6,6 +6,7 @@ EXCLUDES=(
   "dist"
   "tmp"
   "*.log"
+  "volumes"
 )
 # Configuración
 LOCAL_DIR="$(pwd)/"

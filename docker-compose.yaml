@@ -100,7 +100,9 @@ services:
         "--receive.local-endpoint=localhost:10901",
         "--receive.hashrings-file=/etc/thanos/hashring.json",
         "--objstore.config-file=/etc/thanos/s3.yaml",
-        "--tsdb.path=/tmp/data",
+        "--tsdb.path=/data",
+        "--receive.replication-factor=1",
+        "--tsdb.retention=2h",
       ]
     logging:
       driver: fluentd
@@ -108,6 +110,8 @@ services:
         fluentd-address: localhost:24224
         tag: docker.{{.Name}}
         fluentd-async: "true"
+    volumes:
+      - ./volumes/thanos:/data
     env_file:
       - .env
     networks:
@@ -186,22 +190,22 @@ services:
       - homelab
 
   # Tempo service
-  tempo:
-    container_name: tempo
-    restart: unless-stopped
-    build:
-      context: ./services/tempo
-      dockerfile: Dockerfile
-    ports:
-      - "3200:3200"
-    expose:
-      - "4318"
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+  # tempo:  **** adding tempo
+  #   container_name: tempo
+  #   restart: unless-stopped
+  #   build:
+  #     context: ./services/tempo
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3200:3200"
+  #   expose:
+  #     - "4318"
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: localhost:24224
+  #       tag: docker.{{.Name}}
+  #       fluentd-async: "true"
 
   # Grafana service
   grafana:
@@ -227,23 +231,9 @@ services:
     networks:
       - homelab
 
-  netalertx:
-    container_name: netalertx
-    image: "jokobsk/netalertx:latest"
-    network_mode: "host"
-    restart: unless-stopped
-    volumes:
-      - netalertx_config:/app/config
-      - netalertx_db:/app/db
-    environment:
-      - TZ=America/Mexico_City
-      - PORT=20210
-
 networks:
   homelab:
     external: true
 
 volumes:
   grafana-data:
-  netalertx_config:
-  netalertx_db:
