@@ -168,7 +168,7 @@ services:
     # volumes:
     #   - ./pgdata:/var/lib/postgresql/data
 
-  tempo:
+  tempo: ***** tempo no escucha en 4318
     container_name: tempo
     image: grafana/tempo:2.4.1
     command: ["-config.file=/etc/tempo.yaml"]
@@ -185,7 +185,7 @@ services:
         tag: docker.{{.Name}}
         fluentd-async: "true"
 
-  otel-collector:
+  otel-collector: *** otel-collector no escucha en 4318
     container_name: otel-collector
     image: otel/opentelemetry-collector-contrib:0.95.0
     command: ["--config=/etc/otel/config.yaml"]
@@ -207,8 +207,6 @@ services:
       dockerfile: Dockerfile
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-    # volumes:
-    #   - ./logs:/app/logs
     ports:
       - "8080:8080"
     depends_on:
@@ -231,12 +229,8 @@ services:
       - DB_USER=user
       - DB_PASS=pass
       - DB_NAME=demo
-    # volumes:
-    #   - ./logs:/app/logs
     ports:
       - "8081:8081"
-    depends_on:
-      - postgres
     logging:
       driver: fluentd
       options:

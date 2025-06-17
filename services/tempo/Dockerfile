@@ -1,5 +1,5 @@
-FROM grafana/tempo:2.4.1
+FROM grafana/tempo
 
-COPY config.yaml /tmp/config.yaml
+COPY config_minio.yaml /etc/config.yaml
 
 CMD ["-config.file=/etc/config.yaml"]

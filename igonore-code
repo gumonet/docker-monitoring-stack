@@ -1,0 +1,43 @@
+/** Refactor  */
+
+//Security group for EFS
+const fsSecurityGroupInstance = new MonitoringSecurityGroup(
+  this.props.scope,
+  this.props.ecsCluster.awsECsCluster.vpc
+);
+fsSecurityGroupInstance.createSecurityGroup(
+  `thanosFilesystem-${this.props.environment}`,
+  true
+);
+fsSecurityGroupInstance.securityGroup.connections.allowFrom(
+  this.props.ecsCluster.ecsSecurityGroup.securityGroup,
+  Port.tcp(2049),
+  "Allow NFS traffic from ECS cluster to EFS"
+);
+
+//Create filessystem for Thanos Receive
+const fileSystem = new FileSystem(this.props.scope, "ThanosEFS", {
+  vpc: this.props.ecsCluster.awsECsCluster.vpc,
+  lifecyclePolicy: LifecyclePolicy.AFTER_7_DAYS,
+  performanceMode: PerformanceMode.GENERAL_PURPOSE,
+  throughputMode: ThroughputMode.BURSTING,
+  removalPolicy:
+    this.props.environment === "prod"
+      ? RemovalPolicy.RETAIN
+      : RemovalPolicy.DESTROY,
+  securityGroup: fsSecurityGroupInstance.securityGroup,
+  vpcSubnets: this.props.subnets,
+});
+
+const accessPoint = fileSystem.addAccessPoint("ReceiveAccessPoint", {
+  path: "/receive",
+  posixUser: {
+    gid: "1000",
+    uid: "1000",
+  },
+  createAcl: {
+    ownerGid: "1000",
+    ownerUid: "1000",
+    permissions: "755",
+  },
+});

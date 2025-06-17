@@ -22,7 +22,3 @@ storage:
       bucket: tempo-traces-dev # 🔁 Reemplaza por tu bucket real
       endpoint: s3.us-west-2.amazonaws.com # 🔁 Reemplaza con la región correcta
       region: us-west-2
-      # Si usas IAM Role en ECS, no incluyas estas líneas.
-      # Si estás local o en Docker Compose, puedes usar:
-      access_key: ${S3_ACCESS_KEY}
-      secret_key: ${S3_SECRET_KEY}

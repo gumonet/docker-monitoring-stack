@@ -190,22 +190,83 @@ services:
       - homelab
 
   # Tempo service
-  # tempo:  **** adding tempo
-  #   container_name: tempo
-  #   restart: unless-stopped
-  #   build:
-  #     context: ./services/tempo
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "3200:3200"
-  #   expose:
-  #     - "4318"
-  #   logging:
-  #     driver: fluentd
-  #     options:
-  #       fluentd-address: localhost:24224
-  #       tag: docker.{{.Name}}
-  #       fluentd-async: "true"
+  tempo:
+    container_name: tempo
+    restart: unless-stopped
+    build:
+      context: ./services/tempo
+      dockerfile: Dockerfile
+    ports:
+      - "3200:3200"
+    env_file:
+      - .env
+    expose:
+      - "4318"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
+
+  otel-collector:
+    container_name: otel-collector
+    build:
+      context: ./services/tempo
+      dockerfile: Otel.Dockerfile
+    ports:
+      - "4318:4318"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
+
+  service-a:
+    container_name: service-a
+    build:
+      context: ./services/apps/service-a
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+    ports:
+      - "8080:8080"
+    depends_on:
+      - service-b
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
+
+  service-b:
+    container_name: service-b
+    build:
+      context: ./services/apps/service-b
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - DB_HOST=postgres
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: docker.{{.Name}}
+        fluentd-async: "true"
+    networks:
+      - homelab
 
   # Grafana service
   grafana:
@@ -228,6 +289,16 @@ services:
       - .env
     volumes:
       - grafana-data:/var/lib/grafana
+    networks:
+      - homelab
+
+  # Toolbox
+  net-utils:
+    container_name: net-utils
+    image: nicolaka/netshoot
+    command: ["sleep", "infinity"] # Mantiene el contenedor en ejecución
+    stdin_open: true # Para permitir entrada interactiva
+    tty: true # Para usar terminal interactivo
     networks:
       - homelab
 

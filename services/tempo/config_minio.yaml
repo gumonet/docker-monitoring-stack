@@ -1,0 +1,28 @@
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  trace_idle_period: 10s
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h
+
+storage:
+  trace:
+    backend: s3
+    s3:
+      bucket: tempo-data # 🔁 Reemplaza por tu bucket real
+      endpoint: 192.16.0.20:9000 # 🔁 Reemplaza con la región correcta
+      region: us-west-2
+      access_key: admin
+      secret_key: admin123
+      insecure: true # 🔁 Cambia a false si usas HTTP
