@@ -7,7 +7,6 @@ distributor:
       protocols:
         http:
           endpoint: 0.0.0.0:4318
-
 ingester:
   trace_idle_period: 10s
   max_block_duration: 5m
@@ -20,6 +19,9 @@ storage:
   trace:
     backend: s3
     s3:
-      bucket: tempo-traces-dev # 🔁 Reemplaza por tu bucket real
-      endpoint: s3.us-west-2.amazonaws.com # 🔁 Reemplaza con la región correcta
+      bucket: ${MINIO_TEMPO_BUCKET_NAME} # 🔁 Reemplaza por tu bucket real
+      endpoint: ${MINIO_ENDPOINT} # 🔁 Reemplaza con la región correcta
       region: us-west-2
+      access_key: ${MINIO_ACCESS_KEY}
+      secret_key: ${MINIO_SECRET_KEY}
+      insecure: true # 🔁 Cambia a false si usas HTTP

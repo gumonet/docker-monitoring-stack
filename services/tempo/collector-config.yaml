@@ -6,7 +6,7 @@ receivers:
 
 exporters:
   otlphttp:
-    endpoint: http://tempo:4318
+    endpoint: ${TEMPO_URL}
     headers:
       "X-Scope-OrgID": "single-tenant"
     tls:
