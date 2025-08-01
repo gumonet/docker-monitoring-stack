@@ -26,12 +26,12 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     networks:
       - homelab
 
@@ -48,39 +48,39 @@ services:
     environment:
       - LOKI_URL=http://loki:3100/loki/api/v1/push
     restart: unless-stopped
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     depends_on:
       - loki
     networks:
       - homelab
 
     # Log generating application
-  log-generator:
-    container_name: log-generator
-    image: busybox
-    command: >
-      sh -c 'while true; do
-        level=$$([ $$((RANDOM % 10)) -lt 7 ] && echo "INFO" || echo "ERROR");
-        message=$$([ "$$level" = "INFO" ] && echo "User login successful" || echo "Failed to connect to database");
-        echo "{\"level\":\"$$level\",\"message\":\"$$message\"}";
-        sleep $$(( RANDOM % 5 + 1 ));
-      done'
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
-    restart: unless-stopped
-    depends_on:
-      - fluent-bit
-    networks:
-      - homelab
+  # log-generator:
+  #   container_name: log-generator
+  #   image: busybox
+  #   command: >
+  #     sh -c 'while true; do
+  #       level=$$([ $$((RANDOM % 10)) -lt 7 ] && echo "INFO" || echo "ERROR");
+  #       message=$$([ "$$level" = "INFO" ] && echo "User login successful" || echo "Failed to connect to database");
+  #       echo "{\"level\":\"$$level\",\"message\":\"$$message\"}";
+  #       sleep $$(( RANDOM % 5 + 1 ));
+  #     done'
+  #   logging:
+  #     driver: fluentd
+  #     options:
+  #       fluentd-address: localhost:24224
+  #       tag: docker.{{.Name}}
+  #       fluentd-async: "true"
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - fluent-bit
+  #   networks:
+  #     - homelab
 
   # Thanos receiver service
   thanos-receive:
@@ -104,12 +104,12 @@ services:
         "--receive.replication-factor=1",
         "--tsdb.retention=2h",
       ]
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     volumes:
       - ./volumes/thanos:/data
     env_file:
@@ -159,12 +159,12 @@ services:
     depends_on:
       - thanos-receive
       - thanos-store
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     networks:
       - homelab
 
@@ -180,12 +180,12 @@ services:
       - "9090:9090"
     depends_on:
       - thanos-receive
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     networks:
       - homelab
 
@@ -202,12 +202,12 @@ services:
       - .env
     expose:
       - "4318"
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     networks:
       - homelab
 
@@ -218,57 +218,58 @@ services:
       dockerfile: Otel.Dockerfile
     ports:
       - "4318:4318"
+      - "9411:9411"
     environment:
       - TEMPO_URL=http://tempo:4318
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     networks:
       - homelab
 
-  service-a:
-    container_name: service-a
-    build:
-      context: ./services/apps/service-a
-      dockerfile: Dockerfile
-    environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-    ports:
-      - "8080:8080"
-    depends_on:
-      - service-b
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
-    networks:
-      - homelab
+  # service-a:
+  #   container_name: service-a
+  #   build:
+  #     context: ./services/apps/service-a
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - service-b
+  #   # logging:
+  #   #   driver: fluentd
+  #   #   options:
+  #   #     fluentd-address: localhost:24224
+  #   #     tag: docker.{{.Name}}
+  #   #     fluentd-async: "true"
+  #   networks:
+  #     - homelab
 
-  service-b:
-    container_name: service-b
-    build:
-      context: ./services/apps/service-b
-      dockerfile: Dockerfile
-    environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - DB_HOST=postgres
-    env_file:
-      - .env
-    ports:
-      - "8081:8081"
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
-    networks:
-      - homelab
+  # service-b:
+  #   container_name: service-b
+  #   build:
+  #     context: ./services/apps/service-b
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+  #     - DB_HOST=postgres
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "8081:8081"
+  #   # logging:
+  #   #   driver: fluentd
+  #   #   options:
+  #   #     fluentd-address: localhost:24224
+  #   #     tag: docker.{{.Name}}
+  #   #     fluentd-async: "true"
+  #   networks:
+  #     - homelab
 
   # Grafana service
   grafana:
@@ -281,12 +282,12 @@ services:
     depends_on:
       - loki
     restart: unless-stopped
-    logging:
-      driver: fluentd
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.{{.Name}}
-        fluentd-async: "true"
+    # logging:
+    #   driver: fluentd
+    #   options:
+    #     fluentd-address: localhost:24224
+    #     tag: docker.{{.Name}}
+    #     fluentd-async: "true"
     env_file:
       - .env
     volumes:

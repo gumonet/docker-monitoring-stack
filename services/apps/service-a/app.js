@@ -12,7 +12,7 @@ app.get("/", async (req, res) => {
 
   await context.with(trace.setSpan(context.active(), span), async () => {
     try {
-      const response = await axios.get("http://service-b:8081/");
+      const response = await axios.get(`http://${process.env.SERVICE_B_URL}/`);
       const traceId = span.spanContext().traceId;
       logger.info({ trace_id: traceId }, "Calling Service B from Service A");
       res.send(`Service A → B: ${response.data}`);
