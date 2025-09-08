@@ -305,9 +305,22 @@ services:
     networks:
       - homelab
 
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    ports:
+      - 3005:3000
+    volumes:
+      - homepage:/app/config # Make sure your local config directory exists
+      - ./services/homepage/settings.yaml:/app/config/settings.yaml
+      - /var/run/docker.sock:/var/run/docker.sock # (optional) For docker integrations
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "*" # required, may need port. See gethomepage.dev/installation/#homepage_allowed_hosts
+
 networks:
   homelab:
     external: true
 
 volumes:
   grafana-data:
+  homepage:
