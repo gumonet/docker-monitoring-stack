@@ -2,25 +2,51 @@ receivers:
   otlp:
     protocols:
       http:
-        endpoint: 0.0.0.0:4318
-  zipkin: # 👈 Necesario para recibir desde Istio
+        endpoint: 0.0.0.0:4318 # For metrics apps using HTTP
+  zipkin: # 👈 For traces apps using Zipkin
     endpoint: 0.0.0.0:9411
 
+processors:
+  batch:
+    send_batch_size: 8192
+    timeout: 10s
+
 exporters:
+  # For traces to tempo
   otlphttp:
     endpoint: ${TEMPO_URL}
     headers:
       "X-Scope-OrgID": "single-tenant"
     tls:
       insecure: true
+
   # logging:
   #   loglevel: debug
+
+  # METRICS → Thanos Receive (remote write)
+  prometheusremotewrite:
+    endpoint: ${THANOS_RECEIVE_URL}
+    headers:
+      THANOS-TENANT: default-tenant
+    # tls:
+    #   insecure_skip_verify: false   # si usas https con tu CA interna
+    # auth:                           # si usas auth basada en token
+    #   authenticator: basicauth/some  # (ver extensiones/autenticadores)
+  debug:
+    verbosity: detailed
 
 service:
   pipelines:
     traces:
       receivers: [otlp, zipkin]
+      processors: [batch]
       exporters: [otlphttp]
-  # telemetry:
-  #   logs:
-  #     level: debug
+
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheusremotewrite, debug]
+
+  telemetry:
+    logs:
+      level: debug
