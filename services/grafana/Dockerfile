@@ -1,3 +1,3 @@
-FROM grafana/grafana:11.6.1
+FROM grafana/grafana
 
 COPY provisioning /etc/grafana/provisioning
