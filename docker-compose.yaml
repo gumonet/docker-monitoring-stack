@@ -1,7 +1,7 @@
 services:
   # Catvisor
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor
+    image: ghcr.io/google/cadvisor:v0.53.0
     container_name: cadvisor
     restart: unless-stopped
     volumes:
